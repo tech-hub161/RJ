@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RJ Business</title>
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <marquee class="marquee">RJ Business</marquee>
+    <div class="container">
+    <h1 class="animated-heading" style="margin-bottom:8px;">RJ Business</h1>
+    <h2 style="margin-top:0;margin-bottom:4px;font-size:1.3em;font-weight:500;">Mr. Sahadeb Roy</h2>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+        <div id="live-date" style="font-size:1.1em;color:#0078d7;font-weight:500;"></div>
+        <input type="date" id="calendar-date" style="padding:4px 8px;font-size:1em;border-radius:6px;border:1px solid #bfc9d9;" />
+    </div>
+    <div id="table-section"></div>
+        <div class="actions">
+            <button id="add-row">ADD</button>
+            <button id="submit">Submit</button>
+        </div>
+        <div class="report-section">
+            <h2>Saved Reports</h2>
+            <ul id="report-list"></ul>
+            <button id="clear-reports">Clear All Reports</button>
+        </div>
+        <div class="date-range-download">
+            <label>From: <input type="date" id="from-date"></label>
+            <label>To: <input type="date" id="to-date"></label>
+            <div class="download-dropdown" style="display:inline-block;position:relative;">
+                <button id="download-range" type="button">Download ▼</button>
+                <div class="dropdown-content" id="download-range-dropdown" style="display:none;position:absolute;z-index:10;background:#fff;border:1px solid #ccc;min-width:120px;box-shadow:0 2px 8px #0001;">
+                    <button class="download-range-pdf animated-btn" style="width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                        <span style="display:inline-block;vertical-align:middle;">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="20" height="20" rx="4" fill="#d7263d"/>
+                                <text x="10" y="15" text-anchor="middle" fill="#fff" font-size="10" font-family="Segoe UI,Arial,sans-serif">PDF</text>
+                            </svg>
+                        </span>
+                        <span style="font-weight:500;">PDF</span>
+                    </button>
+                    <button class="download-range-xls animated-btn" style="width:100%;text-align:left;padding:6px 12px;border:none;background:none;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                        <span style="display:inline-block;vertical-align:middle;">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="20" height="20" rx="4" fill="#217346"/>
+                                <text x="10" y="15" text-anchor="middle" fill="#fff" font-size="10" font-family="Segoe UI,Arial,sans-serif">XLS</text>
+                            </svg>
+                        </span>
+                        <span style="font-weight:500;">Excel</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="chart-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <canvas id="customer-chart"></canvas>
+        </div>
+    </div>
+    <script src="assets/app.js"></script>
+</body>
+</html>
