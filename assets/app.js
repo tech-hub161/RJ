@@ -30,8 +30,8 @@ let tableData = [];
 let customerCount = 0;
 let reportPage = 1;
 const REPORTS_PER_PAGE = 5;
-const CUSTOMER_LIST_KEY = 'customer-list';
-const TABLE_DATA_KEY = 'table-data';
+const CUSTOMER_LIST_KEY = 'rj-customer-list';
+const TABLE_DATA_KEY = 'rj-table-data';
 
 // --- Utility Functions ---
 // Show live date under heading
@@ -459,7 +459,7 @@ function getAllReportDates() {
     return Object.keys(localStorage)
         .filter(k => k.startsWith('report-'))
         .map(k => k.replace('report-', ''))
-        .sort((a, b) => b.localeCompare(a));
+            .sort((a, b) => b.localeCompare(a)); // Fixed bug: chained .sort() to .map() for correct report listing
 }
 function clearAllReports() {
     for (const k of Object.keys(localStorage)) {

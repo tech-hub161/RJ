@@ -25,6 +25,7 @@ body {
     font-weight: bold;
     letter-spacing: 1px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    animation: marquee-rgb-blink 1.2s infinite alternate;
 }
 .container {
     max-width: 1500px;
@@ -278,6 +279,15 @@ input.name-input:not([readonly]) {
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
+/* Blinking RGB animation for marquee */
+@keyframes marquee-rgb-blink {
+    0%   { color: #185a9d; text-shadow: 0 0 8px #185a9d, 0 0 16px #8e2de2; }
+    25%  { color: #8e2de2; text-shadow: 0 0 8px #8e2de2, 0 0 16px #185a9d; }
+    50%  { color: #ff6a00; text-shadow: 0 0 8px #ff6a00, 0 0 16px #43cea2; }
+    75%  { color: #43cea2; text-shadow: 0 0 8px #43cea2, 0 0 16px #ff6a00; }
+    100% { color: #185a9d; text-shadow: 0 0 8px #185a9d, 0 0 16px #8e2de2; }
+}
+
 /* Table submit animation */
 
 @media (max-width: 700px) {
