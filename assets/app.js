@@ -635,11 +635,53 @@ function downloadPDF(data, dateStr, filenamePrefix = 'Date') {
     win.print();
 }
 function downloadCombinedPDF(reports, fromDate, toDate) {
+    // Prepare summary for each date
+    let summaryRows = [];
+    let sumTotals = { purchase: 0, return: 0, sell: 0, netValue: 0, prevDue: 0, total: 0 };
+    for (const { date, data } of reports) {
+        // Calculate totals for relevant columns
+        const totalFields = ['purchase', 'return', 'sell', 'netValue', 'prevDue', 'total'];
+        const totals = {};
+        totalFields.forEach(field => {
+            totals[field] = data.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
+            totals[field] = Math.round(totals[field]);
+            sumTotals[field] += totals[field];
+        });
+        summaryRows.push({ date, totals });
+    }
+    // Round sumTotals
+    Object.keys(sumTotals).forEach(k => { sumTotals[k] = Math.round(sumTotals[k]); });
     const win = window.open('', '', 'width=900,height=700');
     win.document.write('<html><head><title>PDF Export</title>');
-    win.document.write('<style>body{font-family:sans-serif;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #888;padding:8px;text-align:center;}th{background:#eaf1fb;}h3{margin:18px 0 6px 0;}</style>');
+    win.document.write('<style>body{font-family:sans-serif;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #888;padding:8px;text-align:center;}th{background:#eaf1fb;}h3{margin:18px 0 6px 0;} .summary-table{margin-bottom:24px;border-radius:12px;box-shadow:0 2px 8px #185a9d22;} .summary-table th{background:#eaf1fb;color:#185a9d;} .summary-table td{background:#f3f6fa;}</style>');
     win.document.write('</head><body>');
     win.document.write(`<h2>Daily Business Snapshot<br>From ${formatDateForFile(fromDate)} To ${formatDateForFile(toDate)}</h2>`);
+    // Summary table
+    win.document.write('<h3>Summary of Total Row Values (Each Date)</h3>');
+    win.document.write('<table class="summary-table"><thead><tr><th>Date</th><th>Purchase</th><th>Return</th><th>SELL</th><th>NET VALUE</th><th>Previous Due</th><th>TOTAL</th></tr></thead><tbody>');
+    for (const row of summaryRows) {
+        win.document.write('<tr>');
+        win.document.write('<td>' + formatDateForFile(row.date) + '</td>');
+        win.document.write('<td>' + row.totals.purchase + '</td>');
+        win.document.write('<td>' + row.totals.return + '</td>');
+        win.document.write('<td>' + row.totals.sell + '</td>');
+        win.document.write('<td>' + row.totals.netValue + '</td>');
+        win.document.write('<td>' + row.totals.prevDue + '</td>');
+        win.document.write('<td>' + row.totals.total + '</td>');
+        win.document.write('</tr>');
+    }
+    // Add sum row
+    win.document.write('<tr style="font-weight:bold;background:#eaf1fb;color:#185a9d;">');
+    win.document.write('<td>Total Sum</td>');
+    win.document.write('<td>' + sumTotals.purchase + '</td>');
+    win.document.write('<td>' + sumTotals.return + '</td>');
+    win.document.write('<td>' + sumTotals.sell + '</td>');
+    win.document.write('<td>' + sumTotals.netValue + '</td>');
+    win.document.write('<td>' + sumTotals.prevDue + '</td>');
+    win.document.write('<td>' + sumTotals.total + '</td>');
+    win.document.write('</tr>');
+    win.document.write('</tbody></table>');
+    // Individual tables for each day
     for (const { date, data } of reports) {
         win.document.write(`<h3>Date: ${formatDateForFile(date)}</h3>`);
         win.document.write(tableDataToXLS(data, date));
