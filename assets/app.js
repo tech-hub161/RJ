@@ -16,6 +16,7 @@ const TABLE_COLUMNS = [
     { key: 'rate', label: 'Rate/PCS', editable: true },
     { key: 'netValue', label: 'NET VALUE', editable: false },
     { key: 'vc', label: 'VC', editable: true },
+    { key: 'pwt', label: 'PWT', editable: true }, // Added PWT column
     { key: 'prevDue', label: 'Previous Due', editable: true },
     { key: 'paidInAC', label: 'Paid in A/C', editable: true },
     { key: 'total', label: 'TOTAL', editable: false },
@@ -142,8 +143,8 @@ function renderTable() {
         });
         html += '</tr>';
     }
-    // Calculate totals for relevant columns (add paidInAC)
-    const totalFields = ['purchase', 'booking', 'return', 'sell', 'netValue', 'prevDue', 'paidInAC', 'total'];
+    // Calculate totals for all columns that should appear in the Total row
+    const totalFields = ['purchase', 'booking', 'return', 'sell', 'rate', 'netValue', 'vc', 'pwt', 'prevDue', 'paidInAC', 'total'];
     const totals = {};
     totalFields.forEach(field => {
         if (field === 'rate') {
@@ -288,6 +289,7 @@ function attachViewListeners() {
                     { label: 'Rate/PCS', value: entry.rate },
                     { label: 'NET VALUE', value: entry.netValue !== undefined ? Math.round(entry.netValue) : '' },
                     { label: 'VC', value: entry.vc },
+                    { label: 'PWT', value: entry.pwt },
                     { label: 'Previous Due', value: entry.prevDue },
                     { label: 'Paid in A/C', value: entry.paidInAC !== undefined ? entry.paidInAC : '' },
                     { label: 'TOTAL', value: entry.total !== undefined ? Math.round(entry.total) : '' }
@@ -344,10 +346,12 @@ function recalcRow(idx) {
     const purchaseSum = (row.purchase || 0) + (row.booking || 0);
     row.sell = purchaseSum - (row.return || 0);
     row.netValue = row.sell * (row.rate || 0);
-    // Calculate total before Paid in A/C
+    // Calculate total before Paid in A/C and PWT
     let totalBeforePaid = (row.netValue - (row.vc || 0)) + (row.prevDue || 0);
     // Subtract Paid in A/C if present
-    row.total = totalBeforePaid - (row.paidInAC || 0);
+    let totalAfterPaid = totalBeforePaid - (row.paidInAC || 0);
+    // Subtract PWT if present
+    row.total = totalAfterPaid - (row.pwt || 0);
 }
 
 function recalcAll() {
@@ -366,6 +370,7 @@ function addCustomerRow(name = '') {
         rate: 0,
         netValue: 0,
         vc: 0,
+        pwt: 0, // Added PWT field
         prevDue: 0,
         paidInAC: 0,
         total: 0
@@ -438,7 +443,7 @@ function getAllCustomerHistory(name) {
 }
 
 // --- Report Management ---
-function saveReportToLocalStorage(dateStr, data) {
+function saveReportToLocalStorage(dateStr) {
     // Limit to one report per day, and max 31 per month
     const month = dateStr.slice(0, 7); // yyyy-mm
     const all = getAllReportDates().filter(d => d.startsWith(month));
@@ -447,7 +452,8 @@ function saveReportToLocalStorage(dateStr, data) {
         return;
     }
     const key = `report-${dateStr}`;
-    localStorage.setItem(key, JSON.stringify(data));
+    // Save the current tableData (with all calculated fields)
+    localStorage.setItem(key, JSON.stringify(tableData));
 }
 function getReportFromLocalStorage(dateStr) {
     return JSON.parse(localStorage.getItem(`report-${dateStr}`));
@@ -554,23 +560,31 @@ function tableDataToXLS(data, dateStr) {
         if (col.key !== 'view') xls += `<th>${col.label}</th>`;
     }
     xls += '</tr>';
-    // Calculate totals for relevant columns
-    const totalFields = ['purchase', 'return', 'sell', 'netValue', 'prevDue', 'total'];
+    // Calculate totals for all columns that should appear in the Total row
+    const totalFields = ['purchase', 'booking', 'return', 'sell', 'rate', 'netValue', 'vc', 'pwt', 'prevDue', 'paidInAC', 'total'];
     const totals = {};
     totalFields.forEach(field => {
-        totals[field] = data.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
-        totals[field] = Math.round(totals[field]);
+        if (field === 'rate') {
+            totals[field] = '';
+        } else {
+            totals[field] = data.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
+            totals[field] = Math.round(totals[field]);
+        }
     });
     for (const row of data) {
         xls += '<tr>';
         for (const col of TABLE_COLUMNS) {
             let val = row[col.key] !== undefined ? row[col.key] : '';
-            if (col.key === 'netValue' || col.key === 'total') val = val !== '' ? Math.round(val) : '';
+            if ([
+                'purchase','booking','return','sell','rate','netValue','vc','pwt','prevDue','paidInAC','total'
+            ].includes(col.key)) {
+                val = val !== '' ? Math.round(val) : '';
+            }
             xls += `<td>${val}</td>`;
         }
         xls += '</tr>';
     }
-    // Add Total row
+    // Add Total row (all columns, matching web table)
     xls += '<tr style="font-weight:bold;background:#f3f6fa;">';
     TABLE_COLUMNS.forEach(col => {
         if (col.key === 'name') {
@@ -637,19 +651,23 @@ function downloadPDF(data, dateStr, filenamePrefix = 'Date') {
 function downloadCombinedPDF(reports, fromDate, toDate) {
     // Prepare summary for each date
     let summaryRows = [];
-    let sumTotals = { purchase: 0, return: 0, sell: 0, netValue: 0, prevDue: 0, total: 0 };
+    // All columns to show in summary (matching Total row)
+    const totalFields = ['purchase', 'booking', 'return', 'sell', 'rate', 'netValue', 'vc', 'pwt', 'prevDue', 'paidInAC', 'total'];
+    let sumTotals = {};
+    totalFields.forEach(f => sumTotals[f] = 0);
     for (const { date, data } of reports) {
-        // Calculate totals for relevant columns
-        const totalFields = ['purchase', 'return', 'sell', 'netValue', 'prevDue', 'total'];
         const totals = {};
         totalFields.forEach(field => {
-            totals[field] = data.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
-            totals[field] = Math.round(totals[field]);
-            sumTotals[field] += totals[field];
+            if (field === 'rate') {
+                totals[field] = '';
+            } else {
+                totals[field] = data.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);
+                totals[field] = Math.round(totals[field]);
+                sumTotals[field] += totals[field];
+            }
         });
         summaryRows.push({ date, totals });
     }
-    // Round sumTotals
     Object.keys(sumTotals).forEach(k => { sumTotals[k] = Math.round(sumTotals[k]); });
     const win = window.open('', '', 'width=900,height=700');
     win.document.write('<html><head><title>PDF Export</title>');
@@ -658,15 +676,20 @@ function downloadCombinedPDF(reports, fromDate, toDate) {
     win.document.write(`<h2>Daily Business Snapshot<br>From ${formatDateForFile(fromDate)} To ${formatDateForFile(toDate)}</h2>`);
     // Summary table
     win.document.write('<h3>Summary of Total Row Values (Each Date)</h3>');
-    win.document.write('<table class="summary-table"><thead><tr><th>Date</th><th>Purchase</th><th>Return</th><th>SELL</th><th>NET VALUE</th><th>Previous Due</th><th>TOTAL</th></tr></thead><tbody>');
+    win.document.write('<table class="summary-table"><thead><tr><th>Date</th><th>Purchase</th><th>Booking</th><th>Return</th><th>SELL</th><th>Rate/PCS</th><th>NET VALUE</th><th>VC</th><th>PWT</th><th>Previous Due</th><th>Paid in A/C</th><th>TOTAL</th></tr></thead><tbody>');
     for (const row of summaryRows) {
         win.document.write('<tr>');
         win.document.write('<td>' + formatDateForFile(row.date) + '</td>');
         win.document.write('<td>' + row.totals.purchase + '</td>');
+        win.document.write('<td>' + row.totals.booking + '</td>');
         win.document.write('<td>' + row.totals.return + '</td>');
         win.document.write('<td>' + row.totals.sell + '</td>');
+        win.document.write('<td>' + row.totals.rate + '</td>');
         win.document.write('<td>' + row.totals.netValue + '</td>');
+        win.document.write('<td>' + row.totals.vc + '</td>');
+        win.document.write('<td>' + row.totals.pwt + '</td>');
         win.document.write('<td>' + row.totals.prevDue + '</td>');
+        win.document.write('<td>' + row.totals.paidInAC + '</td>');
         win.document.write('<td>' + row.totals.total + '</td>');
         win.document.write('</tr>');
     }
@@ -674,10 +697,15 @@ function downloadCombinedPDF(reports, fromDate, toDate) {
     win.document.write('<tr style="font-weight:bold;background:#eaf1fb;color:#185a9d;">');
     win.document.write('<td>Total Sum</td>');
     win.document.write('<td>' + sumTotals.purchase + '</td>');
+    win.document.write('<td>' + sumTotals.booking + '</td>');
     win.document.write('<td>' + sumTotals.return + '</td>');
     win.document.write('<td>' + sumTotals.sell + '</td>');
+    win.document.write('<td>' + sumTotals.rate + '</td>');
     win.document.write('<td>' + sumTotals.netValue + '</td>');
+    win.document.write('<td>' + sumTotals.vc + '</td>');
+    win.document.write('<td>' + sumTotals.pwt + '</td>');
     win.document.write('<td>' + sumTotals.prevDue + '</td>');
+    win.document.write('<td>' + sumTotals.paidInAC + '</td>');
     win.document.write('<td>' + sumTotals.total + '</td>');
     win.document.write('</tr>');
     win.document.write('</tbody></table>');
